@@ -1,4 +1,4 @@
-//On my honor, I have neither given nor received any unauthorized aid on this assignment.
+ //On my honor, I have neither given nor received any unauthorized aid on this assignment.
 #include <iostream>
 #include <climits>
 #include <fstream>
@@ -124,7 +124,6 @@ int main(int argc, char *argv[]) {
             if(immediate[11] == 1){
                 immediate = ~immediate;
                 decimalImmediate = -(immediate.to_ulong() + 1);
-                cout << decimalImmediate << endl;
             }
             if(opcode == "00000"){
                 instruction = "addi";
@@ -194,45 +193,239 @@ int main(int argc, char *argv[]) {
     }
     // Close the file
     sample.close();
-    cout << endl;
 
     int registers[4][8];
     memset(registers, 0, sizeof(registers));
 
     string functionalUnits[14];
-    bool registerWrite[31];
+    int registerWrite[31];
+    memset(registerWrite, 0, sizeof(registerWrite));
     int cycle = 0;
     int i = 0;
     int prefecth = 2;
     int totalFetch = 0;
-    while(i < 4){
+    bool executing = false;
+    int waitUntilALU3 = 0;
+    bool clearExectuedNext = false;
+    address = "256";
+    while(cycle < 70){
         simulation << "--------------------" << endl;
         simulation << "Cycle " << ++cycle << endl << endl;
-        vector<string> instruction = split(instructionVec[i]);
         int initial = i;
-        for(int j = initial; j < initial + 2; j++){
-                if(instructionVec[i].substr(0,3) == "jal" || instructionVec[i].substr(0,3) == "beq" || instructionVec[i].substr(0,3) == "bne" || instructionVec[i].substr(0,3) == "blt"){
-                    int reg1 = stoi(instruction[1].substr(1, instruction[1].size() - 2));
-                    int reg2 = stoi(instruction[2].substr(1, instruction[2].size() - 2));
-                    if(registerWrite[reg1] == true || registerWrite[reg2] == true){
-                        functionalUnits[0] = "[" + instructionVec[i] + "]";
-                        i++;
-                        break;
-                    }
-                    else{
-                        functionalUnits[1] = "[" + instructionVec[i] + "]";
-                    }
-                    i++;
+        
+        if(clearExectuedNext == true){
+            functionalUnits[1] = "";
+            clearExectuedNext = false;
+        }
+        if(functionalUnits[8] != "" && functionalUnits[8].substr(1,2) == "sw"){
+                vector<string> instr = split(functionalUnits[8]);
+                int reg1 = stoi(instr[1].substr(1, instr[1].size() - 2));
+                int dataAddress = stoi(instr[2].substr(0, instr[2].find("(")));
+                int offsetReg = stoi(instr[2].substr(instr[2].find("(") + 2, instr[2].find(")") - instr[2].find("(") - 2));
+                int dataStartingAddress = stoi(breakAddress) + 4;
+                dataVec.at((dataAddress + registers[offsetReg/8][offsetReg%8] - dataStartingAddress)/4) = registers[reg1/8][reg1%8];
+                registerWrite[reg1] = 0;
+                functionalUnits[8] = "";
+        }
+        if(functionalUnits[0] != "" && functionalUnits[2] == "" && functionalUnits[9] == "" && functionalUnits[10] == "" && functionalUnits[11] == "" && functionalUnits[12] == "" && functionalUnits[13] == ""){
+            functionalUnits[1] = functionalUnits[0];
+            functionalUnits[0] = "";
+        }
+        else if((functionalUnits[1] != "" && functionalUnits[2] == "" && functionalUnits[9] == "" && functionalUnits[10] == "" && functionalUnits[11] == "" && functionalUnits[12] == "" && functionalUnits[13] == "")){
+            vector<string> instr = split(functionalUnits[1]);
+            if(instr[0] == "[beq"){
+                int reg1 = stoi(instr[1].substr(1, instr[1].size() - 2));
+                int reg2 = stoi(instr[2].substr(1, instr[2].size() - 2));
+                if(registers[reg1/8][reg1%8] == registers[reg2/8][reg2%8]){
+                    int change = 2 * stoi(instr[3].substr(1, instr[3].length() - 2)) - 4 ;
+                    i += change/4;
                 }
-                else{
-                    int dest = stoi(instruction[1].substr(1, instruction[1].size() - 2));
-                    registerWrite[dest] = true;
-                    functionalUnits[prefecth] = "[" + instructionVec[i] + "]";
-                    prefecth++;
-                    i++;
+                registerWrite[reg1] = 0;
+            }
+            else if(instr[0] == "[bne"){
+                int reg1 = stoi(instr[1].substr(1, instr[1].size() - 2));
+                int reg2 = stoi(instr[2].substr(1, instr[2].size() - 2));
+                if(registers[reg1/8][reg1%8] != registers[reg2/8][reg2%8]){
+                    int change = 2 * stoi(instr[3].substr(1, instr[3].length() - 2)) - 4;
+                    i += change/4;
                 }
-            if(functionalUnits[2] != ""){
-                if(functionalUnits[2][2] == 'w'){
+                registerWrite[reg1] = 0;
+            }
+            else if(instr[0] == "[blt"){
+                int reg1 = stoi(instr[1].substr(1, instr[1].size() - 2));
+                int reg2 = stoi(instr[2].substr(1, instr[2].size() - 2));
+                if(registers[reg1/8][reg1%8] < registers[reg2/8][reg2%8]){
+                    int change = 2 * stoi(instr[3].substr(1, instr[3].length() - 2)) - 4;
+                    address = to_string(stoi(address) + change);
+                    i += change/4;
+                }
+                registerWrite[reg1] = 0;
+            }
+            else if(instr[0] == "[jal"){
+                int reg1 = stoi(instr[1].substr(1, instr[1].size() - 2));
+                int reg2 = stoi(instr[2].substr(1, instr[2].size() - 2));
+                if(registers[reg1/8][reg1%8] < registers[reg2/8][reg2%8]){
+                    int change = 2 * stoi(instr[3].substr(1, instr[3].length() - 2)) - 4;
+                    address = to_string(stoi(address) + change);
+                    i += change/4;
+                }
+                registerWrite[reg1] = 0;
+            }
+            functionalUnits[1] = "";
+        }
+        else if(functionalUnits[9] != "" || (functionalUnits[8] != "" && functionalUnits[8].substr(1,2) == "sw")){
+            int reg1;
+            if(functionalUnits[9] != "" && functionalUnits[9].substr(1,2) == "lw"){
+                vector<string> instr = split(functionalUnits[9]);
+                reg1 = stoi(instr[1].substr(1, instr[1].size() - 2));
+                int dataAddress = stoi(instr[2].substr(0, instr[2].find("(")));
+                int offsetReg = stoi(instr[2].substr(instr[2].find("(") + 2, instr[2].find(")") - instr[2].find("(") - 2));
+                int dataStartingAddress = stoi(breakAddress) + 4;
+                registers[reg1/8][reg1%8] = dataVec.at((dataAddress + registers[offsetReg/8][offsetReg%8] - dataStartingAddress)/4);
+                registerWrite[reg1] = 0;
+            }
+            vector<string> nextInstruction = split(functionalUnits[2]);
+            int dest = reg1;
+            if(functionalUnits[2] != "" && ((nextInstruction[0].length() == 3 && stoi(nextInstruction[2].substr(nextInstruction[2].find("(") + 2, nextInstruction[2].find(")") - nextInstruction[2].find("(") - 2)) == dest) || 
+            ((nextInstruction[0].length() == 5 && stoi(nextInstruction[2].substr(1, nextInstruction[2].size() - 2)) == dest)) || 
+            ((nextInstruction[0].length() == 4 && nextInstruction[3][0] == '#' && stoi(nextInstruction[2].substr(1, nextInstruction[2].size() - 2)) == dest)) || 
+            ((nextInstruction[0].length() == 4 && nextInstruction[3][0] != '#' && (stoi(nextInstruction[2].substr(1, nextInstruction[2].size() - 2)) == dest || stoi(nextInstruction[3].substr(1, nextInstruction[3].size() - 2)) == dest))))){
+                waitUntilALU3 = 1;
+            }
+            if(functionalUnits[8] != ""){
+                functionalUnits[9] = functionalUnits[8];
+                functionalUnits[8] = "";
+            }
+            else{
+                functionalUnits[9] = "";
+            }
+        }
+        else if(functionalUnits[11] != ""){
+            vector<string> instr = split(functionalUnits[11]);
+            if(functionalUnits[11].substr(1,4) == "addi"){
+                int dest = stoi(instr[1].substr(1, instr[1].size() - 2));
+                int reg1 = stoi(instr[2].substr(1, instr[2].size() - 2));
+                int imm = stoi(instr[3].substr(1, instr[3].size() - 2));    
+                registers[dest/8][dest%8] = registers[reg1/8][reg1%8] + imm;
+                registerWrite[dest] = 0;
+            }
+            else if(functionalUnits[11].substr(1,3) == "sub"){
+                int dest = stoi(instr[1].substr(1, instr[1].size() - 2));
+                int reg1 = stoi(instr[2].substr(1, instr[2].size() - 2));
+                int reg2 = stoi(instr[3].substr(1, instr[3].size() - 2));
+                registers[dest/8][dest%8] = registers[reg1/8][reg1%8] - registers[reg2/8][reg2%8];
+                registerWrite[dest] = 0;
+            }
+            else if(functionalUnits[11].substr(1,3) == "add"){
+                int dest = stoi(instr[1].substr(1, instr[1].size() - 2));
+                int reg1 = stoi(instr[2].substr(1, instr[2].size() - 2));
+                int reg2 = stoi(instr[3].substr(1, instr[3].size() - 2));
+                registers[dest/8][dest%8] = registers[reg1/8][reg1%8] + registers[reg2/8][reg2%8];
+                registerWrite[dest] = 0;
+            }
+            vector<string> nextInstruction = split(functionalUnits[2]);
+            int dest = stoi(instr[1].substr(1, instr[1].size() - 2));
+            if(functionalUnits[2] != "" && ((nextInstruction[0].length() == 3 && stoi(nextInstruction[2].substr(nextInstruction[2].find("(") + 2, nextInstruction[2].find(")") - nextInstruction[2].find("(") - 2)) == dest) || 
+            ((nextInstruction[0].length() == 5 && stoi(nextInstruction[2].substr(1, nextInstruction[2].size() - 2)) == dest)) || 
+            ((nextInstruction[0].length() == 4 && nextInstruction[3][0] == '#' && stoi(nextInstruction[2].substr(1, nextInstruction[2].size() - 2)) == dest)) || 
+            ((nextInstruction[0].length() == 4 && nextInstruction[3][0] != '#' && (stoi(nextInstruction[2].substr(1, nextInstruction[2].size() - 2)) == dest || stoi(nextInstruction[3].substr(1, nextInstruction[3].size() - 2)) == dest))))){
+                waitUntilALU3 = 1;
+            }
+            functionalUnits[11] = "";
+        }
+        else if(functionalUnits[13] != ""){
+            vector<string> instr = split(functionalUnits[13]);
+            if(instr[0] == "[and"){
+                int dest = stoi(instr[1].substr(1, instr[1].size() - 2));
+                int reg1 = stoi(instr[2].substr(1, instr[2].size() - 2));
+                int reg2 = stoi(instr[3].substr(1, instr[3].size() - 2));
+                registers[dest/8][dest%8] = registers[reg1/8][reg1%8] & registers[reg2/8][reg2%8];
+                registerWrite[dest] = 0;
+            }
+            else if(instr[0] == "[or"){
+                int dest = stoi(instr[1].substr(1, instr[1].size() - 2));
+                int reg1 = stoi(instr[2].substr(1, instr[2].size() - 2));
+                int reg2 = stoi(instr[3].substr(1, instr[3].size() - 2));
+                registers[dest/8][dest%8] = registers[reg1/8][reg1%8] | registers[reg2/8][reg2%8];
+                registerWrite[dest] = 0;
+            }
+            else if(instr[0] == "[andi"){
+                int dest = stoi(instr[1].substr(1, instr[1].size() - 2));
+                int reg1 = stoi(instr[2].substr(1, instr[2].size() - 2));
+                int imm = stoi(instr[3].substr(1, instr[3].size() - 2));
+                registers[dest/8][dest%8] = registers[reg1/8][reg1%8] & imm;
+                registerWrite[dest] = 0;
+            }
+            else if(instr[0] == "[ori"){
+                int dest = stoi(instr[1].substr(1, instr[1].size() - 2));
+                int reg1 = stoi(instr[2].substr(1, instr[2].size() - 2));
+                int imm = stoi(instr[3].substr(1, instr[3].size() - 2));
+                registers[dest/8][dest%8] = registers[reg1/8][reg1%8] | imm;
+                registerWrite[dest] = 0;
+            }
+            else if(instr[0] == "[sll"){
+                int dest = stoi(instr[1].substr(1, instr[1].size() - 2));
+                int reg1 = stoi(instr[2].substr(1, instr[2].size() - 2));
+                int imm = stoi(instr[3].substr(1, instr[3].size() - 2));
+                registers[dest/8][dest%8] = registers[reg1/8][reg1%8] << imm;
+                registerWrite[dest] = 0;
+            }
+            else if(instr[0] == "[sra"){
+                int dest = stoi(instr[1].substr(1, instr[1].size() - 2));
+                int reg1 = stoi(instr[2].substr(1, instr[2].size() - 2));
+                int imm = stoi(instr[3].substr(1, instr[3].size() - 2));
+                registers[dest/8][dest%8] = registers[reg1/8][reg1%8] >> imm;
+                registerWrite[dest] = 0;
+            }
+            vector<string> nextInstruction = split(functionalUnits[2]);
+            int dest = stoi(instr[1].substr(1, instr[1].size() - 2));
+            if(functionalUnits[2] != "" && ((nextInstruction[0].length() == 3 && stoi(nextInstruction[2].substr(nextInstruction[2].find("(") + 2, nextInstruction[2].find(")") - nextInstruction[2].find("(") - 2)) == dest) || 
+            ((nextInstruction[0].length() == 5 && stoi(nextInstruction[2].substr(1, instr[2].size() - 2)) == dest)) || 
+            ((nextInstruction[0].length() == 4 && nextInstruction[3][0] == '#' && stoi(nextInstruction[2].substr(1, nextInstruction[2].size() - 2)) == dest)) || 
+            ((nextInstruction[0].length() == 4 && nextInstruction[3][0] != '#' && (stoi(nextInstruction[2].substr(1, nextInstruction[2].size() - 2)) == dest || stoi(nextInstruction[3].substr(1, nextInstruction[3].size() - 2)) == dest))))){
+                waitUntilALU3 = 1;
+            }
+            functionalUnits[13] = "";
+        }
+        else if(functionalUnits[8] != "" && functionalUnits[8].substr(1,2) == "lw"){
+            functionalUnits[9] = functionalUnits[8];
+            functionalUnits[8] = functionalUnits[6];
+            functionalUnits[6] = functionalUnits[7];
+            functionalUnits[6] = "";
+            executing = true;
+        }
+        else if(functionalUnits[10] != ""){
+            functionalUnits[11] = functionalUnits[10];
+            functionalUnits[10] = "";
+            executing = true;
+        }
+        else if(functionalUnits[12] != ""){
+            functionalUnits[13] = functionalUnits[12];
+            functionalUnits[12] = "";
+            executing = true;
+        }
+        
+        if(functionalUnits[9] != ""){
+            executing = true;
+        }
+        if(functionalUnits[6] != ""){
+            functionalUnits[8] = functionalUnits[6];
+            functionalUnits[6] = functionalUnits[7];
+            functionalUnits[7] = "";
+            if(functionalUnits[2][2] == 'w'){
+                functionalUnits[6] = functionalUnits[2];
+                
+                functionalUnits[2] = functionalUnits[3];
+                functionalUnits[3] = functionalUnits[4];
+                functionalUnits[4] = functionalUnits[5];
+                functionalUnits[5] = "";
+                prefecth--;
+            }
+            executing = true;
+        }
+        if(functionalUnits[2] != "" && !executing && waitUntilALU3 <= 0){
+            if(functionalUnits[2].substr(1,2) == "sw"){
+                if(functionalUnits[6] == ""){
                     functionalUnits[6] = functionalUnits[2];
 
                     functionalUnits[2] = functionalUnits[3];
@@ -240,23 +433,182 @@ int main(int argc, char *argv[]) {
                     functionalUnits[4] = functionalUnits[5];
                     functionalUnits[5] = "";
                 }
-                else if(functionalUnits[2][2] == 'u' || functionalUnits[2][2] == 'd'){
-                    functionalUnits[10] = functionalUnits[2];
+                else if(functionalUnits[7] == ""){
+                    functionalUnits[7] = functionalUnits[2];
+                    
+                    functionalUnits[2] = functionalUnits[3];
+                    functionalUnits[3] = functionalUnits[4];
+                    functionalUnits[4] = functionalUnits[5];
+                    functionalUnits[5] = "";
+                }
+                prefecth--;
+            }
+            if(functionalUnits[2].substr(1,2) == "lw"){
+                if(functionalUnits[6] == ""){
+                    functionalUnits[6] = functionalUnits[2];
 
                     functionalUnits[2] = functionalUnits[3];
                     functionalUnits[3] = functionalUnits[4];
                     functionalUnits[4] = functionalUnits[5];
                     functionalUnits[5] = "";
                 }
-                else{
-                    functionalUnits[12] = functionalUnits[2];
-
+                else if(functionalUnits[7] == ""){
+                    functionalUnits[7] = functionalUnits[2];
                     
+                    functionalUnits[2] = functionalUnits[3];
+                    functionalUnits[3] = functionalUnits[4];
+                    functionalUnits[4] = functionalUnits[5];
+                    functionalUnits[5] = "";
                 }
+                prefecth--;
             }
-            
+            else if((functionalUnits[2][2] == 'u' || functionalUnits[2][2] == 'd') && functionalUnits[10] == "" && functionalUnits[11] == ""){
+                functionalUnits[10] = functionalUnits[2];
+
+                functionalUnits[2] = functionalUnits[3];
+                functionalUnits[3] = functionalUnits[4];
+                functionalUnits[4] = functionalUnits[5];
+                functionalUnits[5] = "";
+                prefecth--;
+            }
+            else if((functionalUnits[2][2] == 'n' || functionalUnits[2][2] == 'r' || functionalUnits[2][2] == 'l') && functionalUnits[12] == "" && functionalUnits[13] == ""){
+                functionalUnits[12] = functionalUnits[2];
+
+                functionalUnits[2] = functionalUnits[3];
+                functionalUnits[3] = functionalUnits[4];
+                functionalUnits[4] = functionalUnits[5];
+                functionalUnits[5] = "";
+                prefecth--;
+            }
         }
+
+        if(functionalUnits[0] == "" && functionalUnits[1] == "" && prefecth <= 5){
+            totalFetch = 0;
+            int allowedFetches = 2;
+            if(prefecth == 4){
+                allowedFetches = 1;
+            }
+            for(int j = initial; j < initial + allowedFetches; j++){
+                vector<string> instruction = split(instructionVec[i]);
+                if(instructionVec[i].substr(0,3) == "beq" || instructionVec[i].substr(0,3) == "bne" || instructionVec[i].substr(0,3) == "blt"){
+                    int reg1 = stoi(instruction[1].substr(1, instruction[1].size() - 2));
+                    int reg2 = stoi(instruction[2].substr(1, instruction[2].size() - 2));
+                    if(registerWrite[reg1] != 0 || registerWrite[reg2] != 0){
+                        functionalUnits[0] = "[" + instructionVec[i] + "]";
+                        i++;
+                        break;
+                    }
+                    else{
+                        functionalUnits[1] = "[" + instructionVec[i] + "]";
+                        vector<string> instr = split(functionalUnits[1]);
+                        if(instr[0] == "[beq"){
+                            int reg1 = stoi(instr[1].substr(1, instr[1].size() - 2));
+                            int reg2 = stoi(instr[2].substr(1, instr[2].size() - 2));
+                            if(registers[reg1/8][reg1%8] == registers[reg2/8][reg2%8]){
+                                int change = 2 * stoi(instr[3].substr(1, instr[3].length() - 2)) - 4 ;
+                                address = to_string(stoi(address) + change);
+                                i += change/4;
+                            }
+                        }
+                        else if(instr[0] == "[bne"){
+                            int reg1 = stoi(instr[1].substr(1, instr[1].size() - 2));
+                            int reg2 = stoi(instr[2].substr(1, instr[2].size() - 2));
+                            if(registers[reg1/8][reg1%8] != registers[reg2/8][reg2%8]){
+                                int change = 2 * stoi(instr[3].substr(1, instr[3].length() - 2)) - 4;
+                                address = to_string(stoi(address) + change);
+                                i += change/4;
+                            }
+                        }
+                        else if(instr[0] == "[blt"){
+                            int reg1 = stoi(instr[1].substr(1, instr[1].size() - 2));
+                            int reg2 = stoi(instr[2].substr(1, instr[2].size() - 2));
+                            if(registers[reg1/8][reg1%8] < registers[reg2/8][reg2%8]){
+                                int change = 2 * stoi(instr[3].substr(1, instr[3].length() - 2)) - 4;
+                                address = to_string(stoi(address) + change);
+                                i += change/4;
+                            }
+                        }
+                        clearExectuedNext = true;
+                    }
+                    i++;
+                }
+                else if(instructionVec[i].substr(0,3) == "jal"){
+                    int dest = stoi(instruction[1].substr(1, instruction[1].size() - 2));
+                    address = to_string(stoi("256") + (i) * 4);
+                    if(registerWrite[dest] != 0){
+                        functionalUnits[0] = "[" + instructionVec[i] + "]";
+                        i++;
+                        break;
+                    }
+                    else{
+                        functionalUnits[1] = "[" + instructionVec[i] + "]";
+                        int dest = stoi(instruction[1].substr(1, instruction[1].size() - 2));
+                        int offset = stoi(instruction[2].substr(1, instruction[2].size() - 1));
+                        registers[dest/8][dest%8] = stoi(address) + 4;
+                        int change = offset * 2 - 4;
+                        address = to_string(stoi(address) + change);
+                        i += (change)/4;
+                        clearExectuedNext = true;
+                        i++;
+                        break;
+                    }
+                }
+                else if(instructionVec[i].substr(0,5) == "break"){
+                    functionalUnits[1] = "[" + instructionVec[i] + "]";
+                    printFunctionalUnits(simulation, functionalUnits);
+                    for(int j = 0; j < 4; j++){
+                        simulation << "x" << setw(2) << setfill('0') << j * 8 << ":";
+                        for(int k = 0; k < 8; k++){
+                            simulation << "\t" << registers[j][k];
+                        }
+                        simulation << endl;
+                    }
+                    
+                    simulation << "Data";
+                    for(int j = 0; j < dataVec.size(); j++){
+                        if(j%8 == 0){
+                            simulation << endl;
+                            simulation << (stoi(breakAddress) + 4) + (32 * j/8) << ":";
+                        }
+                        simulation << "\t" << dataVec.at(j);
+                    }
+                    return 0;
+                }
+                else{
+                    int dest = stoi(instruction[1].substr(1, instruction[1].size() - 2));
+                    registerWrite[dest]++;
+                    functionalUnits[prefecth] = "[" + instructionVec[i] + "]";
+                    prefecth++;
+                    i++;
+                }
+                totalFetch++;
+            }
+        }
+
         printFunctionalUnits(simulation, functionalUnits);
+
+        simulation << "Registers" << endl;
+        for(int j = 0; j < 4; j++){
+            simulation << "x" << setw(2) << setfill('0') << j * 8 << ":";
+            for(int k = 0; k < 8; k++){
+                simulation << "\t" << registers[j][k];
+            }
+            simulation << endl;
+        }
+        
+        simulation << "Data";
+        for(int j = 0; j < dataVec.size(); j++){
+            if(j%8 == 0){
+                simulation << endl;
+                simulation << (stoi(breakAddress) + 4) + (32 * j/8) << ":";
+            }
+            simulation << "\t" << dataVec.at(j);
+        }
+
+        simulation << endl;
+        
+        executing = false;
+        waitUntilALU3--;
     }
     /*
     
