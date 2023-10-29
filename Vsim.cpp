@@ -227,11 +227,11 @@ int main(int argc, char *argv[]) {
                 registerWrite[reg1] = 0;
                 functionalUnits[8] = "";
         }
-        if(functionalUnits[0] != "" && functionalUnits[2] == "" && functionalUnits[9] == "" && functionalUnits[10] == "" && functionalUnits[11] == "" && functionalUnits[12] == "" && functionalUnits[13] == ""){
+        if(functionalUnits[0] != "" && functionalUnits[2] == "" && functionalUnits[8] == "" && functionalUnits[9] == "" && functionalUnits[10] == "" && functionalUnits[11] == "" && functionalUnits[12] == ""  && functionalUnits[13] == ""){
             functionalUnits[1] = functionalUnits[0];
             functionalUnits[0] = "";
         }
-        else if((functionalUnits[1] != "" && functionalUnits[2] == "" && functionalUnits[9] == "" && functionalUnits[10] == "" && functionalUnits[11] == "" && functionalUnits[12] == "" && functionalUnits[13] == "")){
+        else if((functionalUnits[1] != "" && functionalUnits[2] == "" && functionalUnits[8] == "" && functionalUnits[9] == "" && functionalUnits[10] == "" && functionalUnits[11] == "" && functionalUnits[12] == "" &&  functionalUnits[13] == "")){
             vector<string> instr = split(functionalUnits[1]);
             if(instr[0] == "[beq"){
                 int reg1 = stoi(instr[1].substr(1, instr[1].size() - 2));
@@ -273,7 +273,7 @@ int main(int argc, char *argv[]) {
             }
             functionalUnits[1] = "";
         }
-        else if(functionalUnits[9] != "" || (functionalUnits[8] != "" && functionalUnits[8].substr(1,2) == "sw")){
+        else if(functionalUnits[9] != ""){
             int reg1;
             if(functionalUnits[9] != "" && functionalUnits[9].substr(1,2) == "lw"){
                 vector<string> instr = split(functionalUnits[9]);
@@ -283,16 +283,16 @@ int main(int argc, char *argv[]) {
                 int dataStartingAddress = stoi(breakAddress) + 4;
                 registers[reg1/8][reg1%8] = dataVec.at((dataAddress + registers[offsetReg/8][offsetReg%8] - dataStartingAddress)/4);
                 registerWrite[reg1] = 0;
+                vector<string> nextInstruction = split(functionalUnits[2]);
+                int dest = reg1;
+                if(functionalUnits[2] != "" && ((nextInstruction[0].length() == 3 && stoi(nextInstruction[2].substr(nextInstruction[2].find("(") + 2, nextInstruction[2].find(")") - nextInstruction[2].find("(") - 2)) == dest) || 
+                ((nextInstruction[0].length() == 5 && stoi(nextInstruction[2].substr(1, nextInstruction[2].size() - 2)) == dest)) || 
+                ((nextInstruction[0].length() == 4 && nextInstruction[3][0] == '#' && stoi(nextInstruction[2].substr(1, nextInstruction[2].size() - 2)) == dest)) || 
+                ((nextInstruction[0].length() == 4 && nextInstruction[3][0] != '#' && (stoi(nextInstruction[2].substr(1, nextInstruction[2].size() - 2)) == dest || stoi(nextInstruction[3].substr(1, nextInstruction[3].size() - 2)) == dest))))){
+                    waitUntilALU3 = 1;
+                }
             }
-            vector<string> nextInstruction = split(functionalUnits[2]);
-            int dest = reg1;
-            if(functionalUnits[2] != "" && ((nextInstruction[0].length() == 3 && stoi(nextInstruction[2].substr(nextInstruction[2].find("(") + 2, nextInstruction[2].find(")") - nextInstruction[2].find("(") - 2)) == dest) || 
-            ((nextInstruction[0].length() == 5 && stoi(nextInstruction[2].substr(1, nextInstruction[2].size() - 2)) == dest)) || 
-            ((nextInstruction[0].length() == 4 && nextInstruction[3][0] == '#' && stoi(nextInstruction[2].substr(1, nextInstruction[2].size() - 2)) == dest)) || 
-            ((nextInstruction[0].length() == 4 && nextInstruction[3][0] != '#' && (stoi(nextInstruction[2].substr(1, nextInstruction[2].size() - 2)) == dest || stoi(nextInstruction[3].substr(1, nextInstruction[3].size() - 2)) == dest))))){
-                waitUntilALU3 = 1;
-            }
-            if(functionalUnits[8] != ""){
+            if(functionalUnits[8] != "" && functionalUnits[8].substr(1,2) == "lw"){
                 functionalUnits[9] = functionalUnits[8];
                 functionalUnits[8] = "";
             }
@@ -404,7 +404,6 @@ int main(int argc, char *argv[]) {
             functionalUnits[12] = "";
             executing = true;
         }
-        
         if(functionalUnits[9] != ""){
             executing = true;
         }
@@ -419,8 +418,8 @@ int main(int argc, char *argv[]) {
                 functionalUnits[3] = functionalUnits[4];
                 functionalUnits[4] = functionalUnits[5];
                 functionalUnits[5] = "";
-                prefecth--;
             }
+            prefecth--;
             executing = true;
         }
         if(functionalUnits[2] != "" && !executing && waitUntilALU3 <= 0){
@@ -443,7 +442,7 @@ int main(int argc, char *argv[]) {
                 }
                 prefecth--;
             }
-            if(functionalUnits[2].substr(1,2) == "lw"){
+            if(functionalUnits[2] != "" && functionalUnits[2].substr(1,2) == "lw"){
                 if(functionalUnits[6] == ""){
                     functionalUnits[6] = functionalUnits[2];
 
@@ -462,7 +461,7 @@ int main(int argc, char *argv[]) {
                 }
                 prefecth--;
             }
-            else if((functionalUnits[2][2] == 'u' || functionalUnits[2][2] == 'd') && functionalUnits[10] == "" && functionalUnits[11] == ""){
+            else if(functionalUnits[2] != "" && (functionalUnits[2][2] == 'u' || functionalUnits[2][2] == 'd') && functionalUnits[10] == "" && functionalUnits[11] == ""){
                 functionalUnits[10] = functionalUnits[2];
 
                 functionalUnits[2] = functionalUnits[3];
@@ -471,7 +470,7 @@ int main(int argc, char *argv[]) {
                 functionalUnits[5] = "";
                 prefecth--;
             }
-            else if((functionalUnits[2][2] == 'n' || functionalUnits[2][2] == 'r' || functionalUnits[2][2] == 'l') && functionalUnits[12] == "" && functionalUnits[13] == ""){
+            else if(functionalUnits[2] != "" && (functionalUnits[2][2] == 'n' || functionalUnits[2][2] == 'r' || functionalUnits[2][2] == 'l') && functionalUnits[12] == "" && functionalUnits[13] == ""){
                 functionalUnits[12] = functionalUnits[2];
 
                 functionalUnits[2] = functionalUnits[3];
@@ -481,12 +480,22 @@ int main(int argc, char *argv[]) {
                 prefecth--;
             }
         }
-
-        if(functionalUnits[0] == "" && functionalUnits[1] == "" && prefecth <= 5){
+        if(functionalUnits[0] == "" && functionalUnits[1] == ""){
             totalFetch = 0;
-            int allowedFetches = 2;
-            if(prefecth == 4){
+            int allowedFetches = 0;
+            for(int m = 2; m < 6; m++){
+                if(functionalUnits[m] != ""){
+                    allowedFetches++;
+                }
+            }
+            if(allowedFetches == 4){
+                allowedFetches = 0;
+            }
+            else if(allowedFetches == 3){
                 allowedFetches = 1;
+            }
+            else{
+                allowedFetches = 2;
             }
             for(int j = initial; j < initial + allowedFetches; j++){
                 vector<string> instruction = split(instructionVec[i]);
@@ -610,137 +619,6 @@ int main(int argc, char *argv[]) {
         executing = false;
         waitUntilALU3--;
     }
-    /*
     
-    for(int i = 0; i < instructionVec.size(); i++){
-        simulation << "--------------------" << endl;
-        simulation << "Cycle " << ++cycle << endl << endl;
-        simulation << "Registers" << endl;
-        //Insert RISCV Here
-        vector<string> instruction = split(instructionVec[i]);
-        if(instruction[0] == "beq"){
-            int reg1 = stoi(instruction[1].substr(1, instruction[1].size() - 2));
-            int reg2 = stoi(instruction[2].substr(1, instruction[2].size() - 2));
-            if(registers[reg1/8][reg1%8] == registers[reg2/8][reg2%8]){
-                int change = 2 * stoi(instruction[3].substr(1)) - 4 ;
-                address = to_string(stoi(address) + change);
-                i += change/4;
-            }
-        }
-        else if(instruction[0] == "bne"){
-            int reg1 = stoi(instruction[1].substr(1, instruction[1].size() - 2));
-            int reg2 = stoi(instruction[2].substr(1, instruction[2].size() - 2));
-            if(registers[reg1/8][reg1%8] != registers[reg2/8][reg2%8]){
-                int change = 2 * stoi(instruction[3].substr(1)) - 4;
-                address = to_string(stoi(address) + change);
-                i += change/4;
-            }
-        }
-        else if(instruction[0] == "blt"){
-            int reg1 = stoi(instruction[1].substr(1, instruction[1].size() - 2));
-            int reg2 = stoi(instruction[2].substr(1, instruction[2].size() - 2));
-            if(registers[reg1/8][reg1%8] < registers[reg2/8][reg2%8]){
-                int change = 2 * stoi(instruction[3].substr(1)) - 4;
-                address = to_string(stoi(address) + change);
-                i += change/4;
-            }
-        }
-        else if(instruction[0] == "sw"){
-            int reg1 = stoi(instruction[1].substr(1, instruction[1].size() - 2));
-            int dataAddress = stoi(instruction[2].substr(0, instruction[2].find("(")));
-            int offsetReg = stoi(instruction[2].substr(instruction[2].find("(") + 2, instruction[2].find(")") - instruction[2].find("(") - 2));
-            int dataStartingAddress = stoi(breakAddress) + 4;
-            dataVec.at((dataAddress + registers[offsetReg/8][offsetReg%8] - dataStartingAddress)/4) = registers[reg1/8][reg1%8];
-        }
-        else if(instruction[0] == "add"){
-            int dest = stoi(instruction[1].substr(1, instruction[1].size() - 2));
-            int reg1 = stoi(instruction[2].substr(1, instruction[2].size() - 2));
-            int reg2 = stoi(instruction[3].substr(1, instruction[3].size() - 1));
-            registers[dest/8][dest%8] = registers[reg1/8][reg1%8] + registers[reg2/8][reg2%8];
-        }
-        else if(instruction[0] == "sub"){
-            int dest = stoi(instruction[1].substr(1, instruction[1].size() - 2));
-            int reg1 = stoi(instruction[2].substr(1, instruction[2].size() - 2));
-            int reg2 = stoi(instruction[3].substr(1, instruction[3].size() - 1));
-            registers[dest/8][dest%8] = registers[reg1/8][reg1%8] - registers[reg2/8][reg2%8];
-        }
-        else if(instruction[0] == "and"){
-            int dest = stoi(instruction[1].substr(1, instruction[1].size() - 2));
-            int reg1 = stoi(instruction[2].substr(1, instruction[2].size() - 2));
-            int reg2 = stoi(instruction[3].substr(1, instruction[3].size() - 1));
-            registers[dest/8][dest%8] = registers[reg1/8][reg1%8] & registers[reg2/8][reg2%8];
-        }
-        else if(instruction[0] == "or"){
-            int dest = stoi(instruction[1].substr(1, instruction[1].size() - 2));
-            int reg1 = stoi(instruction[2].substr(1, instruction[2].size() - 2));
-            int reg2 = stoi(instruction[3].substr(1, instruction[3].size() - 1));
-            registers[dest/8][dest%8] = registers[reg1/8][reg1%8] | registers[reg2/8][reg2%8];
-        }
-        else if(instruction[0] == "addi"){
-            int dest = stoi(instruction[1].substr(1, instruction[1].size() - 2));
-            int reg1 = stoi(instruction[2].substr(1, instruction[2].size() - 2));
-            int imm = stoi(instruction[3].substr(1, instruction[3].size() - 1));
-            registers[dest/8][dest%8] = registers[reg1/8][reg1%8] + imm;
-        }
-        else if(instruction[0] == "andi"){
-            int dest = stoi(instruction[1].substr(1, instruction[1].size() - 2));
-            int reg1 = stoi(instruction[2].substr(1, instruction[2].size() - 2));
-            int imm = stoi(instruction[3].substr(1, instruction[3].size() - 1));
-            registers[dest/8][dest%8] = registers[reg1/8][reg1%8] & imm;
-        }
-        else if(instruction[0] == "ori"){
-            int dest = stoi(instruction[1].substr(1, instruction[1].size() - 2));
-            int reg1 = stoi(instruction[2].substr(1, instruction[2].size() - 2));
-            int imm = stoi(instruction[3].substr(1, instruction[3].size() - 1));
-            registers[dest/8][dest%8] = registers[reg1/8][reg1%8] | imm;
-        }
-        else if(instruction[0] == "sll"){
-            int dest = stoi(instruction[1].substr(1, instruction[1].size() - 2));
-            int reg1 = stoi(instruction[2].substr(1, instruction[2].size() - 2));
-            int imm = stoi(instruction[3].substr(1, instruction[3].size() - 1));
-            registers[dest/8][dest%8] = registers[reg1/8][reg1%8] << imm;
-        }
-        else if(instruction[0] == "sra"){
-            int dest = stoi(instruction[1].substr(1, instruction[1].size() - 2));
-            int reg1 = stoi(instruction[2].substr(1, instruction[2].size() - 2));
-            int imm = stoi(instruction[3].substr(1, instruction[3].size() - 1));
-            registers[dest/8][dest%8] = registers[reg1/8][reg1%8] >> imm;
-        }
-        else if(instruction[0] == "lw"){
-            int reg1 = stoi(instruction[1].substr(1, instruction[1].size() - 2));
-            int dataAddress = stoi(instruction[2].substr(0, instruction[2].find("(")));
-            int offsetReg = stoi(instruction[2].substr(instruction[2].find("(") + 2, instruction[2].find(")") - instruction[2].find("(") - 2));
-            int dataStartingAddress = stoi(breakAddress) + 4;
-            registers[reg1/8][reg1%8] = dataVec.at((dataAddress + registers[offsetReg/8][offsetReg%8] - dataStartingAddress)/4);
-        }
-        else if(instruction[0] == "jal"){
-            int dest = stoi(instruction[1].substr(1, instruction[1].size() - 2));
-            int offset = stoi(instruction[2].substr(1, instruction[2].size() - 1));
-            registers[dest/8][dest%8] = stoi(address) + 4;
-            int change = offset * 2 - 4;
-            address = to_string(stoi(address) + change);
-            i += (change)/4;
-        }
-        for(int j = 0; j < 4; j++){
-            simulation << "x" << setw(2) << setfill('0') << j * 8 << ":";
-            for(int k = 0; k < 8; k++){
-                simulation << "\t" << registers[j][k];
-            }
-            simulation << endl;
-        }
-        
-        simulation << "Data";
-        for(int j = 0; j < dataVec.size(); j++){
-            if(j%8 == 0){
-                simulation << endl;
-                simulation << (stoi(breakAddress) + 4) + (32 * j/8) << ":";
-            }
-            simulation << "\t" << dataVec.at(j);
-        }
-        if(instruction[0] != "break"){
-            simulation << endl;
-        }
-        address = to_string(stoi(address) + 4);
-    }*/
     return 0;
 }
